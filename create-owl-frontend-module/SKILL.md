@@ -1,48 +1,85 @@
 ---
 name: create-owl-frontend-module
-description: 使用 Vue3 (owl-ui/owl-admin-ui) 创建新的前端子系统或页面。当用户要求创建新的前端子应用、在管理前端添加模块、编写 Vue 页面或实现前端功能时使用。
+description: 使用 Vue3 (owl-ui/owl-admin-ui) 创建新的前端子系统或页面；支持独立前端包与业务仓库内 `frontend/<子应用>/` 一体化布局。当用户要求创建新的前端子应用、在管理前端添加模块、编写 Vue 页面或实现前端功能时使用。
 ---
 
 # 按 owl 体系创建高质量前端模块
 
 本 Skill 与全局规则 **`coding-standards.mdc`** 配合使用。**完整模板与验证步骤**在 `owl-ui/docs/` 和 `owl-admin-ui/docs/` 中，动手前先读对应文档。
 
-## 两条路径（先区分再动手）
+## 三条路径（先区分再动手）
 
 | 路径 | 含义 | 前端操作 |
 |------|------|----------|
-| **A：新建独立子系统** | 新业务线、新仓库/新包 | **新 npm 包**（如某业务 `-ui`），在宿主里 `createFlexAdmin({ subsystems: [yourSubsystem] })` 注册 |
+| **A：新建独立子系统（独立前端仓库）** | 新业务线，前端与后端分属不同仓库/根目录 | **新 npm 包**（如某业务 `-ui`），在宿主里 `createFlexAdmin({ subsystems: [yourSubsystem] })` 注册 |
+| **C：一体化业务仓库** | SubApp 与前端 **同一 Git 仓库**，前端在 `frontend/` 下 | 在 **`frontend/<子应用>/`**（如 `frontend/admin/`）内维护独立 npm 包与 `src/`，与仓库根目录 Go **`app/`** 配套；技术栈与路径 A 相同（`defineSubsystem`），仅**物理根路径**在业务仓库内 |
 | **B：扩展 owl-admin** | 在现有后台里加功能 | 在 owl-admin-ui 仓库内加 views/xxx + api，菜单 path/component 用本包 `viewModulesPathPrefix`（如 `/system`） |
 
-- **路径 A**：前端是**独立包**，有自己的 `defineSubsystem({ name, viewModulesPathPrefix, viewModules, menuContributions })`，后端菜单的 path/component 前缀与该包的 `viewModulesPathPrefix` 一致（例如 `/cms`），**不要**在 owl-admin-ui 里加页面。
+- **路径 A**：前端是**独立包**（仓库可与后端并列），有自己的 `defineSubsystem({ name, viewModulesPathPrefix, viewModules, menuContributions })`，后端菜单的 path/component 前缀与该包的 `viewModulesPathPrefix` 一致（例如 `/cms`），**不要**在 owl-admin-ui 里加页面。
+- **路径 C**：与路径 A **同一套 owl-ui 子系统契约**（`defineSubsystem`、`viewModules`、`api/` 分层、标准 CRUD 五文件等），区别是：包根目录为 **`<业务仓库>/frontend/<子应用>/`**，例如 `owl-workorder/frontend/admin/`（包名如 `@bit-labs.cn/owl-workorder-ui`）。**不要**假设前端在「与 Go 模块根并列的另一个仓库根」；页面与 API 一律写在 `frontend/<子应用>/src/` 下。
 - **路径 B**：前端只在 **owl-admin-ui** 里加页面，`viewModulesPathPrefix` 固定为 `/system`，后端菜单 path/component 为 `/system/xxx/index` 等形式。
 
 ## 工作流：先读 docs 再动手
 
-**路径 A — 新建独立子系统**  
-先读 `owl-ui/docs/01-architecture-and-bootstrap.md`、`owl-ui/docs/03-subsystem-contract.md`、`owl-ui/docs/08-minimal-subsystem-template.md`；新包需导出 `defineSubsystem` 并在宿主 `createFlexAdmin({ subsystems })` 中注册。
+**路径 A / C — 新建或扩展独立子系统包（含一体化仓库）**  
+先读 `owl-ui/docs/01-architecture-and-bootstrap.md`、`owl-ui/docs/03-subsystem-contract.md`、`owl-ui/docs/08-minimal-subsystem-template.md`；新包需导出 `defineSubsystem` 并在宿主 `createFlexAdmin({ subsystems })` 中注册。  
+**路径 C** 仅在 **`frontend/<子应用>/`** 下执行上述包内结构，文档中的 `src/` 均指该目录下的 `src/`（例如 `frontend/admin/src/views/...`）。
 
 **路径 B — 在 owl-admin 中新增模块**  
 先读 `owl-admin-ui/docs/02-feature-folder-pattern.md`、`owl-admin-ui/docs/03-routing-menu-view-contract.md`、`owl-admin-ui/docs/07-canonical-examples-and-ai-guardrails.md`。
 
 ## 前端分层与接线顺序
 
-### 路径 A — 新前端子系统包
+### 路径 A / C — 新前端子系统包
 
-1. 包结构：`package.json`、`src/index.ts`（`defineSubsystem`：name、viewModulesPathPrefix、viewModules、routes、menuContributions）、`src/routes/index.ts`（可选）、`src/api/`、`src/views/`（扁平模块目录，如 `src/views/issue/`、`src/views/task/`）。
-2. **api**：在 `src/api/` 下直接输出模块接口文件（如 `src/api/issue.ts`、`src/api/task.ts`），`http.request` 的 URL、method、params/data 与后端一致。
+1. 包结构：`package.json`、`src/index.ts`（`defineSubsystem`：name、viewModulesPathPrefix、viewModules、routes、menuContributions）、`src/routes/index.ts`（可选）、`src/api/`、`src/views/`（扁平模块目录，如 `src/views/issue/`、`src/views/task/`）。**路径 C** 下完整路径为 `frontend/<子应用>/package.json`、`frontend/<子应用>/src/...`。
+2. **api**：在 `src/api/` 下按 **「API 层书写规范」** 与 **「API 文件与目录」** 编写；`http.request` 的 URL、method、params/data 与后端一致。
 3. **标准 CRUD 强制五文件**（见下文通用示例）：`types.ts`、`useXList.ts`、`columns.tsx`、`XxxForm.vue`、`index.vue`。
 4. **宿主**：安装该包并在 `createFlexAdmin({ subsystems: [yourSubsystem] })` 中注册；后端菜单 path/component 前缀与包内 `viewModulesPathPrefix` 一致。
-5. **路径约束**：路径 A 下，独立子系统默认禁止再套额外业务前缀目录（例如 `src/views/inspection/issue/`）；只有当子系统内部确实存在多个一级业务域时，才允许新增一层业务域目录。
+5. **路径约束**：路径 A / C 下，独立子系统默认禁止再套额外业务前缀目录（例如 `src/views/inspection/issue/`）；只有当子系统内部确实存在多个一级业务域时，才允许新增一层业务域目录。
+
+### API 层书写规范（对齐 `owl-admin-ui/src/api/role.ts`）
+
+- **引用**：`import { http } from "@bit-labs.cn/owl-ui/utils/http";`
+- **形态**：按业务域（或资源）声明 **class**，方法一律为 **箭头函数实例属性**；文件末尾 **单例导出**：`export const roleAPI = new RoleAPI();`。路径 A / C 的独立子系统包（如独立仓库的 `asset-manage-ui`，或一体化仓库的 `frontend/admin`）同样采用此范式，勿用零散 `export const xxx = { list: () => ... }` 对象字面量。
+- **泛型**：`http.request<Result>(...)` 表示常规成功包装；**分页列表**且响应符合 `router.PageSuccess`（`data.list` + 根级 `total`/`currentPage`/`pageSize`）时用 `http.request<ResultTable>(...)`。
+- **参数**：**GET** 查询用第三个参数 `{ params }`；**POST/PUT** 写 Body 用 `{ data }`；与后端 Gin query/json 绑定一致。
+- **静默**：只读列表、下拉等不希望自动弹错误提示的接口，在第四个参数加 `{ silentMessage: true }`（与 `role.ts` 中 `getRoles` 一致）。
+- **命名**：class 用 `PascalCase + API`（如 `RoleAPI`）；导出实例用 **camelCase + API**（如 `roleAPI`），页面中 `import { roleAPI } from "@bit-labs.cn/owl-admin-ui/api/role"` 或子包内相对路径。
+
+### API 文件与目录（路径 A / C 独立子系统强制）
+
+- **禁止**把整条业务线或整个子系统的接口全部写进**一个** `src/api/xxx.ts`（单文件数千行、几十个 class 均不允许）。
+- **按业务域建子目录**：例如 `src/api/asset/warehouse.ts`、`src/api/inspection/task.ts`；**一个文件一个 class（或强绑定的一小组接口）** + 末尾单例导出。
+- **桶文件仅 re-export**：`src/api/asset/index.ts`、`src/api/inspection/index.ts` 等**只**做 `export { warehouseApi } from "./warehouse"`，不写具体 `http.request`。
+- **包导出**：在子系统 `package.json` 的 `exports` 中为 `api/<域名>` 显式指向 `./src/api/<域名>/index.ts`，避免通配解析到已删除的扁平 `api/asset.ts`。
+- 页面侧 import 仍可为 `from "@bit-labs.cn/your-ui/api/asset"`，由桶文件聚合；**需要按文件拆分时**也可 `from "@bit-labs.cn/your-ui/api/asset/warehouse"`（需在 `exports` 中按需增加子路径，或仅用桶导出二选一，团队统一即可）。
+
+**canonical 示例（摘自 owl-admin-ui，新文件请照此结构扩展方法）：**
+
+```ts
+import { http } from "@bit-labs.cn/owl-ui/utils/http";
+
+class RoleAPI {
+  getRoles = (params?: object) => {
+    return http.request<ResultTable>("get", "/api/v1/roles", { params }, { silentMessage: true });
+  };
+  createRole = (data?: object) => {
+    return http.request<Result>("post", "/api/v1/roles", { data });
+  };
+}
+
+export const roleAPI = new RoleAPI();
+```
 
 ### 路径 B — owl-admin-ui 内新增 CRUD 页
 
-1. **api**：在 `src/api/` 下新增或扩展模块，`http.request` 与后端一致。
+1. **api**：在 `src/api/` 下新增或扩展模块，遵守 **「API 层书写规范」**。
 2. **types**：表单/行数据类型、与后端 JSON 字段名一致；列表 Query 类型键名对齐后端 tag，模糊查询见「查询条件字段映射约定」。
 3. **useXList**：列表状态、分页、onSearch、调用上面 api。
 4. **columns**：表格列定义，含状态等 cellRenderer。
 5. **Form.vue**：弹窗表单，接收 `formInline`，暴露 `getRef()` 与 `getFormData()`，父页在 `beforeSure` 中校验再请求。
-6. **index.vue**：页面壳、`defineOptions({ name })` 与菜单 name 一致、PureTableBar + pure-table、addDialog + contentRenderer(Form)、beforeSure 内 FormRef.validate 后调 api 再 done()。
+6. **index.vue**：页面壳、`defineOptions({ name })` 与菜单 name 一致、PureTableBar（`<pure-table>` 必须放在其**作用域默认插槽** `v-slot="{ size, dynamicColumns }"` 内，表格绑定 `:columns="dynamicColumns"` 和 `:size="size"`）、addDialog + contentRenderer(Form)、beforeSure 内 FormRef.validate 后调 api 再 done()。
 
 **分页列表响应（`router.PageSuccess`）**：`http.request` 解析后的对象与 JSON 一致——`data` 仅为 `{ list: T[] }`，**`total`、`currentPage`、`pageSize` 在根级**，与 `data` 平级。列表赋值用 `res.data.list`，分页用 `res.total` 等；**不要**写成 `data?.total` 或假定 `data` 上同时有 `list` 与 `total`。
 
@@ -61,6 +98,7 @@ description: 使用 Vue3 (owl-ui/owl-admin-ui) 创建新的前端子系统或页
 - 把 `reactive(form) + pagination + onSearch + handleSizeChange` 整段写在 `index.vue`（应放到 `useXList.ts`）。
 - `beforeSure` 里用 `options.props.formInline` 作为提交体（应 `xxxFormRef.value.getFormData()`，并在 `getRef().validate` 通过后提交）。
 - 用单文件 `<script setup lang="tsx">` 替代标准五文件分层（列定义可留在 `columns.tsx` 为 TSX，页面壳用 `lang="ts"`）。
+- **把 `<pure-table>` 放在 `<PureTableBar>` 外面**（会导致 `TypeError: slots.default is not a function`）。`PureTableBar` 内部通过 `slots.default({ size, dynamicColumns })` 渲染表格，**必须**将 `<pure-table>` 放在其**作用域默认插槽**内，并使用插槽提供的 `size` 和 `dynamicColumns`。正确用法见下方 `index.vue` 示例中的 `<template v-slot="{ size, dynamicColumns }">`。
 
 ## 页面分类与最小骨架（非标准 CRUD）
 
@@ -74,7 +112,7 @@ description: 使用 Vue3 (owl-ui/owl-admin-ui) 创建新的前端子系统或页
 
 ## 标准 CRUD 通用代码示例（五文件结构）
 
-**`src/views/issue/types.ts`**
+**`src/views/issue/types.ts`**（路径 C 下为 `frontend/<子应用>/src/views/issue/types.ts`）
 ```ts
 export interface IssueFormData {
   id?: string;
@@ -248,23 +286,27 @@ function handleDelete(row: { id: string }) {
       <template #buttons>
         <el-button type="primary" @click="openDialog()">新增</el-button>
       </template>
-    </PureTableBar>
-    <pure-table
-      :data="dataList" :columns="columns" :pagination="pagination" :loading="loading"
-      @size-change="handleSizeChange" @current-change="handleCurrentChange"
-    >
-      <template #operation="{ row }">
-        <el-button link type="primary" @click="openDialog('编辑', row)">编辑</el-button>
-        <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+      <template v-slot="{ size, dynamicColumns }">
+        <pure-table
+          :data="dataList" :columns="dynamicColumns" :size="size"
+          :pagination="pagination" :loading="loading"
+          @size-change="handleSizeChange" @current-change="handleCurrentChange"
+        >
+          <template #operation="{ row }">
+            <el-button link type="primary" @click="openDialog('编辑', row)">编辑</el-button>
+            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </pure-table>
       </template>
-    </pure-table>
+    </PureTableBar>
   </div>
 </template>
 ```
 
 ## 前端快速参考
 
-- **路径 A（新子系统包）**：包入口导出 `defineSubsystem`，宿主 `createFlexAdmin({ subsystems: [sub] })` 注册；菜单 path/component 前缀与包内 `viewModulesPathPrefix` 一致；`src/views/` 使用扁平模块目录（如 `src/views/issue/`），`src/api/` 直接输出模块接口文件（如 `src/api/issue.ts`）；**标准 CRUD 必须用本 Skill 中五文件通用示例的结构**。
+- **路径 A（独立仓库子系统包）**：包入口导出 `defineSubsystem`，宿主 `createFlexAdmin({ subsystems: [sub] })` 注册；菜单 path/component 前缀与包内 `viewModulesPathPrefix` 一致；`src/views/` 使用扁平模块目录；`src/api/<业务域>/` 下多文件 + `index.ts` 桶导出；**标准 CRUD 必须用本 Skill 中五文件通用示例的结构**。
+- **路径 C（一体化业务仓库）**：与路径 A 规则相同，**包根目录**为业务仓库下的 **`frontend/<子应用>/`**，Go 后端在**同仓** `app/`；禁止把前端写到「与业务仓库并列的另一仓库根」或混淆为 owl-admin-ui（路径 B）。
 - **路径 B（owl-admin-ui 内加页）**：在 owl-admin-ui 的 `src/views/`、`src/api/` 下按文档增加文件；**不要**在 `src/routes/index.ts` 为业务页加静态路由；路由由后端菜单 + 动态注入。
 - **通用**：`defineOptions({ name })` 与后端菜单项 name 必须一致；Form 暴露 `getRef()` 与 `getFormData()`，父页在 addDialog 的 `beforeSure` 中 `FormRef.validate` 通过后再请求、再 `done()`。
 
@@ -272,7 +314,7 @@ function handleDelete(row: { id: string }) {
 
 - [ ] **页面与菜单**：页面 `defineOptions({ name })` 与菜单 name 一致。
 - [ ] **表单**：Form 暴露 getRef、`getFormData`，beforeSure 中先 validate 再请求。
-- [ ] **API**：api 的 URL/params 与后端一致；列表搜索参数未误用 Go 字段名（如 `nameLike`）代替 tag（如 `name`）。
-- [ ] **路径 A 专属**：前端包已导出 `defineSubsystem` 并在宿主中通过 `createFlexAdmin({ subsystems })` 注册；后端菜单 path/component 前缀与该包 `viewModulesPathPrefix` 一致；标准 CRUD 为五文件分层，无内联 columns/内联表单。
+- [ ] **API**：URL/method/params/data 与后端一致；**class + 单例 + `Result`/`ResultTable` 泛型** 与 `owl-admin-ui/src/api/role.ts` 同范式；**接口按域拆到 `src/api/<域>/*.ts`，桶文件仅 re-export**；列表搜索参数未误用 Go 字段名（如 `nameLike`）代替 tag（如 `name`）。
+- [ ] **路径 A / C 专属**：前端包已导出 `defineSubsystem` 并在宿主中通过 `createFlexAdmin({ subsystems })` 注册；后端菜单 path/component 前缀与该包 `viewModulesPathPrefix` 一致；标准 CRUD 为五文件分层，无内联 columns/内联表单。**路径 C** 还须确认文件落在 `frontend/<子应用>/src/`，与同仓 `app/` 后端配套。
 - [ ] **路径 B 专属**：未在 owl-admin-ui 的 routes/index.ts 注册业务路由。
 - [ ] **验证**：登录后菜单可见、列表/增删改可通。

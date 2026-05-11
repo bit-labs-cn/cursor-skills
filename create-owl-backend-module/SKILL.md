@@ -1,6 +1,6 @@
 ---
 name: create-owl-backend-module
-description: Scaffolds high-quality owl SubApp backends with per-resource model/repository/service/handle layers, typed DTOs, validators, redis locks on writes, and errContract business errors. Use when creating a new Go sub-application, adding owl HTTP APIs, or implementing backend features; do not use for quick throwaway prototypes that collapse multiple domains into one gateway.
+description: Scaffolds high-quality owl SubApp backends with per-resource model/repository/service/handle layers, typed DTOs, validators, redis locks on writes, and errContract business errors. Supports monorepos where frontend lives under frontend/ and Go app/ is at repo root. Use when creating a new Go sub-application, adding owl HTTP APIs, or implementing backend features; do not use for quick throwaway prototypes that collapse multiple domains into one gateway.
 ---
 
 # 按 owl 体系创建高质量后端模块
@@ -15,6 +15,21 @@ description: Scaffolds high-quality owl SubApp backends with per-resource model/
 ## 统一路径（先读 docs 再动手）
 
 本 Skill 只面向 **新建独立子系统**：新业务线、新仓库或新包，基于 `owl` 框架独立搭建后端服务。
+
+### 一体化业务仓库（前后端同仓、目录不同级）
+
+部分业务线把 **Go SubApp 与前端子系统包放在同一 Git 仓库**，与「后端仓库、前端仓库两个并列根目录」的旧布局不同。典型目录约定：
+
+| 层级 | 路径（相对业务仓库根） | 说明 |
+|------|------------------------|------|
+| **后端** | `app/`、`conf/`、`go.mod` 等 | 与独立 owl 子应用相同的分层与接线，无变化 |
+| **前端** | `frontend/<子前端目录>/`（如 `frontend/admin/`） | 独立 npm 包：`package.json`、`src/index.ts`（`defineSubsystem`）、`src/views/`、`src/api/` 等 |
+
+**生成或修改代码时：**
+
+- 以用户当前打开的仓库为根；后端文件落在 **`app/`**（及 `route/`、`database/` 等该仓库既有结构），**不要**写到与 `frontend/` 同级的另一个「假想的独立前端仓库根」。
+- 若用户说明前端在 `frontend/` 下，Agent 应把前端相关路径理解为 **`frontend/<子应用>/src/...`**，而不是 workspace 里与后端仓库并列的另一个文件夹。
+- 风格参考仍可从 `owl-admin` 等框架示例仓库用 Read 读取；落地路径写清楚业务仓库内的相对路径即可。
 
 ## 工作流：先读真实源码，再读 docs，最后动手
 
@@ -48,7 +63,7 @@ description: Scaffolds high-quality owl SubApp backends with per-resource model/
 
 ## 后端分层与接线顺序（单资源）
 
-1. **model**：`db.BaseModel`、`TableName()`、状态常量与 model 同包；**业务字段**在 `gorm` tag 中须含 `comment:中文简短说明`（与 `size`/`index` 等写在同一 tag 内），与 `owl/docs/07-minimal-subapp-template.md` 示例一致；`gorm:"-"` 等不参与落库的字段可省略。
+1. **model**：`db.BaseModel`、`TableName()`、状态常量与 model 同包；**所有会落库的字段**（含仅有指针/默认列名、无 `size`/`index` 的字段）在 `gorm` tag 中**必须**含 `comment:中文简短说明`（与 `size`/`index` 等写在同一 tag 内），与 `owl/docs/07-minimal-subapp-template.md` 示例一致；`gorm:"-"` 等不参与落库的字段可省略。嵌入的 `db.BaseModel` 由框架定义，子应用**自定义字段**不得遗漏 `comment:`。
 2. **repository**：接口 + 实现，`WithContext`，构造函数返回接口类型。
 3. **service**：Create/UpdateReq、`validate` 标签、**`label:"中文名"` 标签**、写操作用 `redis.LockerFactory` 加锁、`copier.Copy` 到 model，调 `repo.WithContext(ctx)`。凡带 `validate` 规则的字段，**必须**同时加 `label:"中文名"` 标签（用于验证错误的中文翻译），参照 `owl-admin` 现有 DTO 风格。
 4. **handle**：实现 `router.Handler`（`ModuleName()`），Bind → Service → `router.Success`/`router.Fail`/`router.PageSuccess`；对外 HTTP 方法需 swagger 注释。
@@ -76,7 +91,7 @@ description: Scaffolds high-quality owl SubApp backends with per-resource model/
 ## 交付验收（生成后自检）
 
 - [ ] 每个对外资源具备独立 `repository` 接口文件、`service` 文件、`handle` 文件。
-- [ ] **model**：落库业务字段的 `gorm` tag 均含 `comment:中文简短说明`（与 `owl/docs/07-minimal-subapp-template.md` 示例一致）。
+- [ ] **model**：所有落库字段的 `gorm` tag 均含 `comment:中文简短说明`（含仅类型映射字段；`gorm:"-"` 除外；与 `owl/docs/07-minimal-subapp-template.md` 示例一致）。
 - [ ] **label 标签**：所有 Req 结构体中带 `validate` 规则的字段均已加 `label:"中文名"` 标签（验证错误中文翻译必须）。
 - [ ] 写操作 service 使用 `redis.LockerFactory` 加锁（按资源+主键设计 key）。
 - [ ] 领域错误使用 `errContract.NewBizError`，并在 service 包内集中定义错误码常量与构造函数（可按资源拆 `errors_xxx.go` 或分节组织）。
@@ -135,7 +150,7 @@ func TaskLocked() *errContract.BizError {
 - [ ] **参考源码**：生成代码前已用 Read 工具实际阅读了上方「参考文件」表中的 service / handle / repository 源码，而非凭记忆生成。
 - [ ] **框架能力**：所有功能需求已优先查过 `provider-reference.md`；凡框架已提供的，均通过 ServiceProvider 注入使用，未重复实现。
 - [ ] **Binds与路由**：Binds 已注册、InitApi 已注册路由、InitMenu 已挂菜单。
-- [ ] **数据库**：Migrate 已加 model；model 业务字段已写 `gorm` 列注释（`comment:`）。
+- [ ] **数据库**：Migrate 已加 model；model **全部**落库字段已写 `gorm` 列注释（`comment:`），无遗漏。
 - [ ] **应用结构**：SubApp 有 `app` 字段。
 - [ ] **验证**：按 `owl/docs/08-*` 做启动与接口验证。
 - [ ] **黑盒测试**：按 `api-testing-guide.md` 执行并汇总结果。
